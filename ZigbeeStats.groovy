@@ -134,11 +134,12 @@ def parse(String message) {
         log.error("Error parsing json: ${e}\ninput message: ${message}")
         return
     }
+    if (json.id == 0) {
+        return  // No need to add hub as a device
+    }
+
     //noinspection GroovyAssignabilityCheck
     final String deviceId = Integer.toString(json.id)
-    if (deviceId == 0) {
-        return
-    }
     final String deviceName = json.name
     final int lastHopLqi = json.lastHopLqi
     final int lastHopRssi = json.lastHopRssi
