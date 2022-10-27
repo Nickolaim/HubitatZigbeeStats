@@ -26,8 +26,6 @@
  */
 
 
-static String userAgent() { "ZigbeeStats/1.0.0" }
-
 static Long msToSec() { 1000 }
 
 static Long connectTimeoutSec() { 120 }
@@ -57,10 +55,12 @@ void logDebug(msg) {
     }
 }
 
+@SuppressWarnings("unused")
 def installed() {
     initialize()
 }
 
+@SuppressWarnings("unused")
 def updated() {
     initialize()
 }
@@ -102,6 +102,7 @@ void webSocketConnect() {
     }
 }
 
+@SuppressWarnings("unused")
 void websocketWatchdog() {
     logDebug "websocketWatchdog()"
     if ((now() - state.lastMessageTime) / msToSec() < websocketWatchdogLookBackSec()) {
@@ -111,6 +112,7 @@ void websocketWatchdog() {
     webSocketConnect()
 }
 
+@SuppressWarnings("unused")
 void webSocketStatus(final String status) {
     logDebug "webSocketStatus: ${status}"
 
@@ -120,8 +122,8 @@ void webSocketStatus(final String status) {
     }
 }
 
+@SuppressWarnings("unused")
 def parse(String message) {
-    final Long parseStart = now()
     logDebug "parse() with message: ${message}"
 
     def json
@@ -168,18 +170,20 @@ StringBuilder composeTileTopXText(entries) {
 <tbody>
 """)
 
-    def sorted_entries = entries.sort( {
-            entryA, entryB ->
-                if (entryA.lastHopLqi == entryB.lastHopLqi) {
-                    return entryA.lastHopRssi - entryB.lastHopRssi
-                } else {
-                    return entryA.lastHopLqi - entryB.lastHopLqi
-                }
-        } as Comparator
+    def sorted_entries = entries.sort({
+        entryA, entryB ->
+            if (entryA.lastHopLqi == entryB.lastHopLqi) {
+                return entryA.lastHopRssi - entryB.lastHopRssi
+            } else {
+                return entryA.lastHopLqi - entryB.lastHopLqi
+            }
+    } as Comparator
     )
 
     if (sorted_entries.length > 0) {
-        def last = Math.min(topX.toInteger(), sorted_entries.length) - 1
+        //noinspection GroovyAssignabilityCheck
+        Integer last = Math.min(topX.toInteger(), sorted_entries.length) - 1
+        //noinspection GroovyAssignabilityCheck
         sorted_entries[0..last].each { val ->
             result.append(
                     """
@@ -199,7 +203,7 @@ StringBuilder composeTileTopXText(entries) {
     return result
 }
 
-StringBuilder composeTileStatsText(entries) {
+static StringBuilder composeTileStatsText(entries) {
     StringBuilder result = new StringBuilder()
     def l = entries.length
     result.append("Devices reported: ${l}<div/>")
@@ -209,11 +213,11 @@ StringBuilder composeTileStatsText(entries) {
 
     def rssi = new Integer[l]
     entries.eachWithIndex { entry, i ->
-         rssi[i] = entry.lastHopRssi
+        rssi[i] = entry.lastHopRssi
     }
     def sorted_rssi = rssi.sort()
-    def rssi_min = rssi[0]
-    def rssi_max = rssi[rssi.length - 1]
+    def rssi_min = sorted_rssi[0]
+    def rssi_max = sorted_rssi[sorted_rssi.length - 1]
     result.append("RSSI Min: ${rssi_min}<div/>")
     result.append("RSSI Max: ${rssi_max}<div/>")
 
