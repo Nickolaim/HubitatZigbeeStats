@@ -191,7 +191,7 @@ StringBuilder composeTileTopXText(entries) {
             result.append(
                     """
 <tr>
-<td>${hubitat.helper.HexUtils.integerToHexString(val.id.toInteger(), 1)}</td>
+<td>${hubitat.helper.HexUtils.integerToHexString(val.id.toInteger(), 2)}</td>
 <td style="align=left">${val.name}</td>
 <td>${val.lastHopLqi}</td>
 <td>${val.lastHopRssi}</td>
