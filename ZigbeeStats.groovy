@@ -83,6 +83,7 @@ void webSocketConnect() {
     logDebug "webSocketConnect"
     if ((now() - state.lastConnectTime) / msToSec() < connectTimeoutSec()) {
 
+        //noinspection GroovyAssignabilityCheck
         def runTime = new Date(now() + connectTimeoutSec() * msToSec())
         logDebug "Schedule next socket connection to: ${runTime}"
 
@@ -133,6 +134,7 @@ def parse(String message) {
         log.error("Error parsing json: ${e}\ninput message: ${message}")
         return
     }
+    //noinspection GroovyAssignabilityCheck
     final String deviceId = Integer.toString(json.id)
     if (deviceId == 0) {
         return
@@ -213,6 +215,7 @@ static StringBuilder composeTileStatsText(entries) {
 
     def rssi = new Integer[l]
     entries.eachWithIndex { entry, i ->
+        //noinspection GroovyAssignabilityCheck
         rssi[i] = entry.lastHopRssi
     }
     def sorted_rssi = rssi.sort()
