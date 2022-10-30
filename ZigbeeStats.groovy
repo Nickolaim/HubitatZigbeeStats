@@ -5,12 +5,12 @@
  *  Copyright 2022 Nick M
  *
  *  Description:
- *      Driver that collects information from zigbee event log and output devices with worst performance to tiles
+ *      Driver that collects information from Zigbee event log and determines worst performing devices
  *
  *  To use:
  *     - Paste the source code as a new driver
  *     - Create a new virtual device with the driver
- *     - Adjust preferences if required
+ *     - Adjust preferences if needed
  *
  *  References:
  *     - Repository: https://github.com/Nickolaim/HubitatZigbeeStats
@@ -25,32 +25,29 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
+static Long connectTimeoutMilliseconds() { 120_000 }
 
-static Long msToSec() { 1000 }
-
-static Long connectTimeoutSec() { 120 }
-
-static Long websocketWatchdogLookBackSec() { 300 }
+static Long webSocketWatchdogLookBackMilliseconds() { 600_000 }
 
 metadata {
     definition(name: "ZigbeeStats", namespace: "nickolaim", author: "Nick M",
             importUrl: "https://raw.githubusercontent.com/Nickolaim/HubitatZigbeeStats/main/ZigbeeStats.groovy") {
         capability "Initialize"
 
-        attribute "tileTopX", "string"
+        attribute "tileTopN", "string"
         attribute "tileStats", "string"
     }
 
     preferences {
-        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: false
-        input name: "topX", type: "int", title: "Top X items to generate on topX tile", defaultValue: 5
+        input name: "enableLog", type: "bool", title: "Enable debug logging", defaultValue: false
+        input name: "topN", type: "int", title: "Top N items to generate on topN tile", defaultValue: 5
         input name: "webSocketUrl", type: "string", title: "URL to `/zigbeeLogsocket` event stream, " +
                 "note it should be on the secondary port", defaultValue: "ws://127.0.0.1:8080/zigbeeLogsocket"
     }
 }
 
 void logDebug(msg) {
-    if (logEnable) {
+    if (enableLog) {
         log.debug msg
     }
 }
@@ -66,26 +63,26 @@ def updated() {
 }
 
 def initialize() {
-    logDebug "Initialization"
+    logDebug "initialize()"
     state.lastConnectTime = 0
     state.zigbeeEntries = [:]
     state.lastMessageTime = 0
-    if (state.websocketWatchdogScheduled == null) {
-        runEvery30Minutes(websocketWatchdog)
-        state.websocketWatchdogScheduled = true
+    if (state.webSocketWatchdogScheduled == null) {
+        runEvery30Minutes(webSocketWatchdog)
+        state.webSocketWatchdogScheduled = true
     }
-    sendEventIfChanged(name: "tileTopX", value: "")
+    sendEventIfChanged(name: "tileTopN", value: "")
     sendEventIfChanged(name: "tileStats", value: "")
     webSocketConnect()
 }
 
 void webSocketConnect() {
-    logDebug "webSocketConnect"
-    if ((now() - state.lastConnectTime) / msToSec() < connectTimeoutSec()) {
+    logDebug "webSocketConnect()"
+    if ((now() - state.lastConnectTime) < connectTimeoutMilliseconds()) {
 
         //noinspection GroovyAssignabilityCheck
-        def runTime = new Date(now() + connectTimeoutSec() * msToSec())
-        logDebug "Schedule next socket connection to: ${runTime}"
+        def runTime = new Date(now() + connectTimeoutMilliseconds())
+        logDebug "Scheduling next socket connection to: ${runTime}"
 
         runOnce(runTime, "webSocketConnect")
         return
@@ -99,15 +96,15 @@ void webSocketConnect() {
     }
     catch (e) {
         logDebug "Initialize error: ${e.message} ${e}"
-        log.error "WebSocket connect failed: ${e}"
+        log.error "Web socket connect failed: ${e}"
     }
 }
 
 @SuppressWarnings("unused")
-void websocketWatchdog() {
-    logDebug "websocketWatchdog()"
-    if ((now() - state.lastMessageTime) / msToSec() < websocketWatchdogLookBackSec()) {
-        logDebug "Called too early, exiting"
+void webSocketWatchdog() {
+    logDebug "webSocketWatchdog()"
+    if ((now() - state.lastMessageTime) < webSocketWatchdogLookBackMilliseconds()) {
+        logDebug "webSocketWatchdog() has no work to do - the last message received recently"
         return
     }
     webSocketConnect()
@@ -115,7 +112,7 @@ void websocketWatchdog() {
 
 @SuppressWarnings("unused")
 void webSocketStatus(final String status) {
-    logDebug "webSocketStatus: ${status}"
+    logDebug "webSocketStatus() with status: ${status}"
 
     if (status.startsWith("failure: ")) {
         log.warn("Failure message from web socket: ${status.substring("failure: ".length())}")
@@ -150,8 +147,8 @@ def parse(String message) {
 
     def entries = state.zigbeeEntries.values().toArray()
 
-    sbTopX = composeTileTopXText(entries)
-    sendEventIfChanged(name: "tileTopX", value: sbTopX.toString())
+    sbTopN = composeTileTopNText(entries)
+    sendEventIfChanged(name: "tileTopN", value: sbTopN.toString())
 
     sbStats = composeTileStatsText(entries)
     sendEventIfChanged(name: "tileStats", value: sbStats.toString())
@@ -159,7 +156,7 @@ def parse(String message) {
     state.lastMessageTime = now()
 }
 
-StringBuilder composeTileTopXText(entries) {
+StringBuilder composeTileTopNText(entries) {
     StringBuilder result = new StringBuilder("""
 <table width="100%" valign="top">
 <thead>
@@ -177,15 +174,14 @@ StringBuilder composeTileTopXText(entries) {
         entryA, entryB ->
             if (entryA.lastHopLqi == entryB.lastHopLqi) {
                 return entryA.lastHopRssi - entryB.lastHopRssi
-            } else {
-                return entryA.lastHopLqi - entryB.lastHopLqi
             }
+            return entryA.lastHopLqi - entryB.lastHopLqi
     } as Comparator
     )
 
     if (sorted_entries.length > 0) {
         //noinspection GroovyAssignabilityCheck
-        Integer last = Math.min(topX.toInteger(), sorted_entries.length) - 1
+        Integer last = Math.min(topN.toInteger(), sorted_entries.length) - 1
         //noinspection GroovyAssignabilityCheck
         sorted_entries[0..last].each { val ->
             result.append(
