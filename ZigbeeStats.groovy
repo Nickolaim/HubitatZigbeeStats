@@ -10,7 +10,7 @@
  *  To use:
  *     - Paste the source code as a new driver
  *     - Create a new virtual device with the driver
- *     - Adjust preferences if needed
+ *     - Adjust the preferences if needed
  *
  *  References:
  *     - Repository: https://github.com/Nickolaim/HubitatZigbeeStats
@@ -25,9 +25,7 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-static Long connectTimeoutMilliseconds() { 120_000 }
-
-static Long webSocketWatchdogLookBackMilliseconds() { 600_000 }
+static Long connectDelayMilliseconds() { 120_000 }
 
 metadata {
     definition(name: "ZigbeeStats", namespace: "nickolaim", author: "Nick M",
@@ -58,6 +56,12 @@ def installed() {
 }
 
 @SuppressWarnings("unused")
+void uninstalled() {
+    logDebug "uninstalled()"
+    unschedule()
+}
+
+@SuppressWarnings("unused")
 def updated() {
     initialize()
 }
@@ -67,10 +71,6 @@ def initialize() {
     state.lastConnectTime = 0
     state.zigbeeEntries = [:]
     state.lastMessageTime = 0
-    if (state.webSocketWatchdogScheduled == null) {
-        runEvery30Minutes(webSocketWatchdog)
-        state.webSocketWatchdogScheduled = true
-    }
     sendEventIfChanged(name: "tileTopN", value: "")
     sendEventIfChanged(name: "tileStats", value: "")
     webSocketConnect()
@@ -78,10 +78,10 @@ def initialize() {
 
 void webSocketConnect() {
     logDebug "webSocketConnect()"
-    if ((now() - state.lastConnectTime) < connectTimeoutMilliseconds()) {
+    if ((now() - state.lastConnectTime) < connectDelayMilliseconds()) {
 
         //noinspection GroovyAssignabilityCheck
-        def runTime = new Date(now() + connectTimeoutMilliseconds())
+        def runTime = new Date(now() + connectDelayMilliseconds())
         logDebug "Scheduling next socket connection to: ${runTime}"
 
         runOnce(runTime, "webSocketConnect")
@@ -95,19 +95,8 @@ void webSocketConnect() {
         logDebug "Connection has been established"
     }
     catch (e) {
-        logDebug "Initialize error: ${e.message} ${e}"
         log.error "Web socket connect failed: ${e}"
     }
-}
-
-@SuppressWarnings("unused")
-void webSocketWatchdog() {
-    logDebug "webSocketWatchdog()"
-    if ((now() - state.lastMessageTime) < webSocketWatchdogLookBackMilliseconds()) {
-        logDebug "webSocketWatchdog() has no work to do - the last message received recently"
-        return
-    }
-    webSocketConnect()
 }
 
 @SuppressWarnings("unused")
@@ -128,7 +117,7 @@ def parse(String message) {
     try {
         json = parseJson(message)
     } catch (Exception e) {
-        log.error("Error parsing json: ${e}\ninput message: ${message}")
+        log.error("Error parsing json: ${e}\nInput message: ${message}")
         return
     }
     if (json.id == 0) {
@@ -158,16 +147,13 @@ def parse(String message) {
 
 StringBuilder composeTileTopNText(entries) {
     StringBuilder result = new StringBuilder("""
-<table width="100%" valign="top">
-<thead>
+<table style="width:100%;vertical-align:top">
 <tr>
-<th>ZigBee ID</th>
+<th>Zigbee ID</th>
 <th>Name</th>
-<th>Last Hop LQI</th>
-<th>Last Hop RSSI</th>
+<th>Last hop LQI</th>
+<th>Last hop RSSI</th>
 </tr>
-</thead>
-<tbody>
 """)
 
     def sorted_entries = entries.sort({
@@ -196,7 +182,6 @@ StringBuilder composeTileTopNText(entries) {
         }
     }
     result.append("""
-</tbody>
 </table>
 """)
     return result
@@ -205,7 +190,7 @@ StringBuilder composeTileTopNText(entries) {
 static StringBuilder composeTileStatsText(entries) {
     StringBuilder result = new StringBuilder()
     def l = entries.length
-    result.append("Devices reported: ${l}<div/>")
+    result.append("Devices reported: ${l}<br />")
     if (l == 0) {
         return result
     }
@@ -218,8 +203,8 @@ static StringBuilder composeTileStatsText(entries) {
     def sorted_rssi = rssi.sort()
     def rssi_min = sorted_rssi[0]
     def rssi_max = sorted_rssi[sorted_rssi.length - 1]
-    result.append("RSSI Min: ${rssi_min}<div/>")
-    result.append("RSSI Max: ${rssi_max}<div/>")
+    result.append("RSSI Min: ${rssi_min}<br />")
+    result.append("RSSI Max: ${rssi_max}<br />")
 
     return result
 }
