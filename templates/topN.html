@@ -1,0 +1,33 @@
+{% if output_format == "html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hubitat Zigbee Details</title>
+</head>
+<body>
+<h1>Hubitat Zigbee Details</h1>
+
+<div style="width: 500pt">
+{% endif %}
+<table style="width:100%;vertical-align:top">
+    <tr>
+        <th>Zigbee ID</th>
+        <th>Name</th>
+        <th>Last hop LQI</th>
+        <th>Last hop RSSI</th>
+    </tr>
+{% for val in data %}
+    <tr>
+        <td>{{ val.idHex }}</td>
+        <td style="align:left">{{val.name}}</td>
+        <td>{{val.lastHopLqi}}</td>
+        <td>{{val.lastHopRssi}}</td>
+    </tr>
+{% endfor %}
+</table>
+
+{% if output_format == "html" %}
+</div>
+</body>
+{% endif %}
