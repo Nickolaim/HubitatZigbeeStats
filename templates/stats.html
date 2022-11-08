@@ -1,0 +1,25 @@
+{% if output_format == "html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hubitat Zigbee Stats</title>
+</head>
+<body>
+<h1>Hubitat Zigbee Stats</h1>
+
+{% endif %}
+Last Hop LQI minimum: {{lqi[0]}}<br />
+Last Hop LQI medium: {{lqi[1]}}<br />
+Last Hop LQI maximum: {{lqi[2]}}<br />
+{% if output_format == "html" %}
+<pre>higher is better, 255 max</pre>
+{% endif %}
+<br />
+Last Hop RSSI minimum: {{rssi[0]}}<br />
+Last Hop RSSI medium: {{rssi[1]}}<br />
+Last Hop RSSI maximum: {{rssi[2]}}<br />
+{% if output_format == "html" %}
+<pre>higher is better, below -70 might be problematic</pre>
+</body>
+{% endif %}

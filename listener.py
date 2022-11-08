@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import toml
 import websockets
 from quart import Quart, render_template, request
+from werkzeug.exceptions import BadRequest
 
 FORMAT_HTML = "html"
 FORMAT_TILE = "tile"
@@ -34,7 +35,7 @@ class LogMessage:
 
     @property
     def idHex(self) -> str:
-        return f'{self.id:0>4X}'
+        return f"{self.id:0>4X}"
 
 
 def compare(item1: LogMessage, item2: LogMessage) -> int:
@@ -74,7 +75,18 @@ app = ListenerQuartApp()
 def add_log_message(msg: LogMessage):
     app.data[msg.id] = msg.__dict__
     with app.data_path.open("w") as fs:
-        json.dump(app.data, fs)
+        json.dump(app.data, fs, indent=2)
+
+
+def get_data():
+    return [LogMessage(**v) for v in app.data.values() if v["id"]]
+
+
+def get_output_format():
+    output_format = request.args.get("format", FORMAT_HTML)
+    if output_format not in FORMATS:
+        raise BadRequest(description=f"Invalid format {output_format}.  Valid formats: {FORMATS}")
+    return output_format
 
 
 async def task_zigbee_log_listener():
@@ -115,18 +127,36 @@ async def index():
     return await render_template("index.html")
 
 
-@app.route('/topN')
+@app.route("/topN")
 async def topN():
-    args = request.args
-    n = int(args.get("n", "0"))
-    output_format = args.get("format", FORMAT_HTML)
-    if output_format not in FORMATS:
-        return f"Bad Request\nInvalid format {output_format}.  Valid formats: {FORMATS}", 400
-    data = [LogMessage(**v) for v in app.data.values() if v["id"]]
-    data_sorted = sorted(data, key=cmp_to_key(compare))
+    n = int(request.args.get("n", "0"))
+    output_format = get_output_format()
+    data_sorted = sorted(get_data(), key=cmp_to_key(compare))
     if n > 0:
         data_sorted = data_sorted[:n]
-    return await render_template("topN.html", data=data_sorted, output_format=output_format)
+    return await render_template("topN.html", output_format=output_format, data=data_sorted)
+
+
+@app.route("/stats")
+async def stat():
+    output_format = get_output_format()
+    data = get_data()
+    if not data:
+        return ""
+    max_lqi, med_lqi, min_lqi = calc_min_med_max(sorted([v.lastHopLqi for v in data]))
+    max_rssi, med_rssi, min_rssi = calc_min_med_max(sorted([v.lastHopRssi for v in data]))
+    return await render_template("stats.html", output_format=output_format,
+                                 lqi=(min_lqi, med_lqi, max_lqi), rssi=(min_rssi, med_rssi, max_rssi))
+
+
+def calc_min_med_max(values):
+    min_v = values[0]
+    max_v = values[-1]
+    if len(values) % 2:
+        med_v = values[len(values) // 2]
+    else:
+        med_v = (values[len(values) // 2] + values[len(values) // 2 - 1]) // 2
+    return max_v, med_v, min_v
 
 
 if __name__ == "__main__":

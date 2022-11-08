@@ -38,7 +38,7 @@ metadata {
     preferences {
         input name: "enableLog", type: "bool", title: "Enable debug logging", defaultValue: false
         input name: "topN", type: "int", title: "Top N items to generate on topN tile", defaultValue: 5
-        input name: "listenerUrl", type: "string", title: ""
+        input name: "listenerUrl", type: "string", title: "URL of site running on listener.py"
     }
 }
 
@@ -97,11 +97,18 @@ void timerCallback() {
         return
     }
 
-    String url = "${listenerUrl}/topN?format=tile&n=${topN}"
-    logDebug "Request URL: ${url}"
-    httpGet(uri: url, contentType: "text/plain") { response ->
+    String urlTopN = "${listenerUrl}/topN?format=tile&n=${topN}"
+    logDebug "Request URL: ${urlTopN}"
+    httpGet(uri: urlTopN, contentType: "text/plain") { response ->
         response_text = readString(response.data)
         sendEventIfChanged(name: "tileTopN", value: response_text)
+    }
+
+    String urlStats = "${listenerUrl}/stats?format=tile"
+    logDebug "Request URL: ${urlStats}"
+    httpGet(uri: urlStats, contentType: "text/plain") { response ->
+        response_text = readString(response.data)
+        sendEventIfChanged(name: "tileStats", value: response_text)
     }
 }
 
