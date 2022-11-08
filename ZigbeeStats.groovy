@@ -80,6 +80,16 @@ void initialize() {
     timerCallback()
 }
 
+String readString(StringReader sr) {
+    StringBuilder builder = new StringBuilder()
+    int ch;
+    while ((ch = sr.read()) != -1) {
+        builder.append((char) ch)
+    }
+    return builder.toString()
+}
+
+
 @SuppressWarnings("unused")
 void timerCallback() {
     if (listenerUrl == None) {
@@ -87,18 +97,11 @@ void timerCallback() {
         return
     }
 
-    String url = "${listenerUrl}/topN"
-    String queryString = "format=tile&n=${topN}"
-    httpGet(uri: url, queryString: queryString, contentType: "text/html") { response ->
-        if (response.getStatus() > 400) {
-            logError "Request to ${url}/${queryString} retuned status code ${response.getStatus()}\n" +
-                    "Data: ${response.getData()}"
-            return
-        }
-
-        logDebug "Received data:"
-        logDebug response.data
-        sendEventIfChanged(name: "tileTopN", value: response.data)
+    String url = "${listenerUrl}/topN?format=tile&n=${topN}"
+    logDebug "Request URL: ${url}"
+    httpGet(uri: url, contentType: "text/plain") { response ->
+        response_text = readString(response.data)
+        sendEventIfChanged(name: "tileTopN", value: response_text)
     }
 }
 
