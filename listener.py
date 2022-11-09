@@ -156,12 +156,14 @@ async def stat():
     max_rssi, med_rssi, min_rssi = calc_min_med_max(sorted([v.lastHopRssi for v in data]))
     date_time_24h_ago = datetime.now() - timedelta(hours=24)
     date_time_7d_ago = datetime.now() - timedelta(days=7)
+    last_event_date_time = sorted([v.dateTime for v in data])[-1]
     return await render_template("stats.html", output_format=output_format,
                                  lqi=(min_lqi, med_lqi, max_lqi),
                                  rssi=(min_rssi, med_rssi, max_rssi),
                                  devices_total=len(data),
                                  devices_last_24h=len([v for v in data if v.dateTime > date_time_24h_ago]),
                                  devices_last_7d=len([v for v in data if v.dateTime > date_time_7d_ago]),
+                                 last_event_date_time=last_event_date_time.strftime("%Y-%m-%d %H:%M:%S")
                                  )
 
 
