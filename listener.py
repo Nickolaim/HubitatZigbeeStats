@@ -4,6 +4,7 @@ import asyncio
 import dataclasses
 import json
 from asyncio import CancelledError
+from datetime import datetime, timedelta
 from functools import cmp_to_key
 from pathlib import Path
 from urllib.parse import urlparse
@@ -32,10 +33,18 @@ class LogMessage:
     lastHopRssi: int
     time: str
     type: str
+    _date_time: datetime = dataclasses.field(default=None)
 
     @property
     def idHex(self) -> str:
         return f"{self.id:0>4X}"
+
+    @property
+    def dateTime(self):
+        if not self._date_time:
+            self._date_time = datetime.strptime(self.time, "%Y-%m-%d %H:%M:%S.%f")
+
+        return self._date_time
 
 
 def compare(item1: LogMessage, item2: LogMessage) -> int:
@@ -145,8 +154,15 @@ async def stat():
         return ""
     max_lqi, med_lqi, min_lqi = calc_min_med_max(sorted([v.lastHopLqi for v in data]))
     max_rssi, med_rssi, min_rssi = calc_min_med_max(sorted([v.lastHopRssi for v in data]))
+    date_time_24h_ago = datetime.now() - timedelta(hours=24)
+    date_time_7d_ago = datetime.now() - timedelta(days=7)
     return await render_template("stats.html", output_format=output_format,
-                                 lqi=(min_lqi, med_lqi, max_lqi), rssi=(min_rssi, med_rssi, max_rssi))
+                                 lqi=(min_lqi, med_lqi, max_lqi),
+                                 rssi=(min_rssi, med_rssi, max_rssi),
+                                 devices_total=len(data),
+                                 devices_last_24h=len([v for v in data if v.dateTime > date_time_24h_ago]),
+                                 devices_last_7d=len([v for v in data if v.dateTime > date_time_7d_ago]),
+                                 )
 
 
 def calc_min_med_max(values):
