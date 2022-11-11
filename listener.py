@@ -178,4 +178,4 @@ def calc_min_med_max(values):
 
 
 if __name__ == "__main__":
-    app.run(host="192.168.1.107", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=8080, debug=False)
