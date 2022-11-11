@@ -3,7 +3,8 @@
 import asyncio
 import dataclasses
 import json
-from asyncio import CancelledError
+import logging
+from asyncio import CancelledError, Task
 from datetime import datetime, timedelta
 from functools import cmp_to_key
 from pathlib import Path
@@ -58,18 +59,19 @@ class ListenerQuartApp(Quart):
         self.config.from_file("config.toml", load=toml.load)
         self.logger.setLevel(self.config.get("LOG_LEVEL", "WARNING"))
 
-        self.is_shutting_down = False
-        self.background_task = None
+        self.is_shutting_down: bool = False
+        self.background_task: Task = None
 
         hubitat_hub_url = self.config.get("HUBITAT_HUB_URL")
         if not hubitat_hub_url:
             raise ValueError("Invalid configuration in config.toml.  No HUBITAT_HUB_URL entry.")
         parsed_url = urlparse(hubitat_hub_url)
-        self.ws_url = f"{'ws' if parsed_url.scheme == 'http' else 'wss'}://{parsed_url.netloc}/zigbeeLogsocket"
+        self.ws_url: str = f"{'ws' if parsed_url.scheme == 'http' else 'wss'}://{parsed_url.netloc}/zigbeeLogsocket"
         self.logger.info(f"Hubitat Zigbee WebSocket URL: {self.ws_url}")
 
-        self.data_path = Path(__file__).parent / "data.json"
-        self.data = {}
+        self.last_saved_datetime: datetime = datetime.now()
+        self.data_path: Path = Path(__file__).parent / "data.json"
+        self.data: dict = {}
         try:
             if self.data_path.exists():
                 with self.data_path.open("r") as rf:
@@ -83,8 +85,10 @@ app = ListenerQuartApp()
 
 def add_log_message(msg: LogMessage):
     app.data[msg.id] = msg.__dict__
-    with app.data_path.open("w") as fs:
-        json.dump(app.data, fs, indent=2)
+    if app.last_saved_datetime < datetime.now() - timedelta(minutes=5):
+        with app.data_path.open("w") as fs:
+            json.dump(app.data, fs, indent=2)
+            app.last_saved_datetime = datetime.now()
 
 
 def get_data():
@@ -139,10 +143,9 @@ async def index():
 @app.route("/topN")
 async def topN():
     n = int(request.args.get("n", "0"))
-    output_format = get_output_format()
     data_sorted = sorted(get_data(), key=cmp_to_key(compare))
-    if n > 0:
-        data_sorted = data_sorted[:n]
+    data_sorted = data_sorted[: n if n > 0 else None]
+    output_format = get_output_format()
     return await render_template("topN.html", output_format=output_format, data=data_sorted)
 
 
@@ -170,12 +173,11 @@ async def stat():
 def calc_min_med_max(values):
     min_v = values[0]
     max_v = values[-1]
-    if len(values) % 2:
-        med_v = values[len(values) // 2]
-    else:
-        med_v = (values[len(values) // 2] + values[len(values) // 2 - 1]) // 2
+    med_v = values[len(values) // 2] if len(values) % 2 else \
+        (values[len(values) // 2] + values[len(values) // 2 - 1]) // 2
+
     return max_v, med_v, min_v
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=app.config.get("PORT", 8080), debug=app.logger.level == logging.DEBUG)

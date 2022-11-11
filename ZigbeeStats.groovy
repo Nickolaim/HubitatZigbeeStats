@@ -7,14 +7,11 @@
  *  Description:
  *      Driver that collects information from Zigbee event log and determines worst performing devices
  *
- *  To use:
- *     - <TBD how to run generator>
- *     - Paste the source code as a new driver
- *     - Create a new virtual device with the driver
- *     - Adjust the preferences if needed
- *
  *  References:
  *     - Repository: https://github.com/Nickolaim/HubitatZigbeeStats
+ *
+ *   Installation and usage:
+ *     - See README in the repository
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
