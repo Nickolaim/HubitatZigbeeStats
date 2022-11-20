@@ -1,0 +1,4 @@
+# Application settings template
+HUBITAT_HUB_URL = "http://<hub_ip>"
+LOG_LEVEL = "INFO"
+PORT = 8080
